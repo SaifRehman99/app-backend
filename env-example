@@ -1,2 +1,4 @@
 <!-- Rename this file to .env and add your keys below -->
 DB_URL=
+JWT_EXPIRE=
+JWT_SECRET=
