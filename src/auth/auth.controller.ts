@@ -13,6 +13,7 @@ import { AuthGuard } from '@auth/auth.guard';
 import { AuthService } from '@auth/auth.service';
 import { CreateUserDto } from '@auth/dto/createUser.dto';
 import { LoginDto } from '@auth/dto/login.dto';
+import { UserType } from '@auth/types/auth.types';
 
 @Controller('api/v1/auth')
 export class AuthController {
@@ -25,7 +26,7 @@ export class AuthController {
   @Post('signup')
   async signUp(
     @Body() createUserDto: CreateUserDto,
-  ): Promise<{ message: string; token: string; user: User }> {
+  ): Promise<{ message: string; token: string; user: UserType }> {
     return await this.userAuthService.signUp(createUserDto);
   }
 

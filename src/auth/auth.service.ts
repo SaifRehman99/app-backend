@@ -13,6 +13,7 @@ import { compare } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from '@auth/dto/createUser.dto';
 import { LoginDto } from '@auth/dto/login.dto';
+import { AuthResponse } from '@auth/types/auth.types';
 
 @Injectable()
 export class AuthService {
@@ -25,15 +26,21 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async signUp(
-    createUserDto: CreateUserDto,
-  ): Promise<{ message: string; token: string; user: User }> {
+  async signUp(createUserDto: CreateUserDto): Promise<AuthResponse> {
     try {
       const user = await this.userModel.create(createUserDto);
 
+      // Exclude sensitive fields (e.g., password) from the user object
+      const { password, ...userWithoutPassword } = user.toObject();
+
+      // token handling below
       const token = this.generateToken(user._id as any);
 
-      return { message: 'User Registered Success', user, token };
+      return {
+        message: 'User Registered Success',
+        user: userWithoutPassword,
+        token,
+      };
     } catch (error) {
       if (error.code === 11000 || error.code === 11001) {
         // MongoDB duplicate key error (code 11000 or 11001)
@@ -45,23 +52,26 @@ export class AuthService {
     }
   }
 
-  async login(loginDto: LoginDto): Promise<{ message: string; token: string }> {
-    const { email, password } = loginDto;
-
-    const user = await this.userModel.findOne({ email });
+  async login(loginDto: LoginDto): Promise<AuthResponse> {
+    const user = await this.userModel.findOne({ email: loginDto.email });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const isPasswordMatch = await compare(password, user.password);
+    // Exclude sensitive fields (e.g., password) from the user object
+    const { password, ...userWithoutPassword } = user.toObject();
+
+    const isPasswordMatch = await compare(loginDto.password, user.password);
 
     if (!isPasswordMatch) {
-      throw new UnauthorizedException('Invalid login credentials');
+      throw new NotFoundException('Invalid login credentials');
     }
+
+    // token handling below
     const token = this.generateToken(user._id as any);
 
-    return { message: 'User Login Success', token };
+    return { message: 'User Login Success', user: userWithoutPassword, token };
   }
 
   async getUser(id: string): Promise<User> {
