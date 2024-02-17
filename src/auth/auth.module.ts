@@ -3,8 +3,10 @@ import { AuthController } from '@auth/auth.controller';
 import { AuthService } from '@auth/auth.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UserSchema } from '@auth/schemas/user.schema';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { RepositoryModule } from '@app/repository/repository.module';
+import { UserModule } from '@app/user/user.module';
 
 @Module({
   imports: [
@@ -23,9 +25,11 @@ import { ConfigService } from '@nestjs/config';
 
     // Mongoose register below
     MongooseModule.forFeature([{ name: 'User', schema: UserSchema }]),
+    RepositoryModule,
   ],
   controllers: [AuthController],
   providers: [AuthService],
+  exports: [AuthService],
 })
 export class AuthModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {}

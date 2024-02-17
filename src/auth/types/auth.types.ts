@@ -1,3 +1,5 @@
+import { User } from '@auth/schemas/user.schema';
+
 export interface UserType {
   _id: any;
   name: string;
@@ -6,5 +8,5 @@ export interface UserType {
 export interface AuthResponse {
   message: string;
   token: string;
-  user: UserType;
+  user: Partial<User>;
 }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { AppController } from '@app/app.controller';
 import { AppService } from '@app/app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -6,6 +6,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '@auth/auth.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { LoggerMiddleware } from './utils/middleware';
+import { UserModule } from './user/user.module';
+import { RepositoryModule } from './repository/repository.module';
 
 @Module({
   imports: [
@@ -27,6 +30,10 @@ import { APP_GUARD } from '@nestjs/core';
 
     // custom modules below
     AuthModule,
+
+    UserModule,
+
+    RepositoryModule,
   ],
   controllers: [AppController],
   providers: [
@@ -37,4 +44,8 @@ import { APP_GUARD } from '@nestjs/core';
     },
   ],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}

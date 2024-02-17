@@ -4,37 +4,42 @@ import {
   Logger,
   UnauthorizedException,
   ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { User } from '@auth/schemas/user.schema';
 import { compare } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from '@auth/dto/createUser.dto';
 import { LoginDto } from '@auth/dto/login.dto';
 import { AuthResponse } from '@auth/types/auth.types';
+import { ConfigService } from '@nestjs/config';
+import { UserRepository } from '@app/repository/user.repository';
+import { UserService } from '@app/user/user.service';
 
 @Injectable()
 export class AuthService {
   // logger below
-  private readonly logger = new Logger(AuthService.name);
+  private readonly logger;
 
   // Injecting Model
   constructor(
-    @InjectModel(User.name) private userModel: Model<User>,
+    private readonly userRepository: UserRepository,
     private jwtService: JwtService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.logger = new Logger(AuthService.name);
+  }
 
-  async signUp(createUserDto: CreateUserDto): Promise<AuthResponse> {
+  public async signUp(createUserDto: CreateUserDto): Promise<AuthResponse> {
     try {
-      const user = await this.userModel.create(createUserDto);
-
-      // Exclude sensitive fields (e.g., password) from the user object
-      const { password, ...userWithoutPassword } = user.toObject();
+      const user = await this.userRepository.create(createUserDto);
 
       // token handling below
-      const token = this.generateToken(user._id as any);
+      const token = this.generateToken((user as any)._id as any);
+
+      // Exclude sensitive fields (e.g., password) from the user object
+      const { password, ...userWithoutPassword } = user;
 
       return {
         message: 'User Registered Success',
@@ -42,6 +47,7 @@ export class AuthService {
         token,
       };
     } catch (error) {
+      console.log(error);
       if (error.code === 11000 || error.code === 11001) {
         // MongoDB duplicate key error (code 11000 or 11001)
         throw new ConflictException('Email already exists.');
@@ -52,15 +58,12 @@ export class AuthService {
     }
   }
 
-  async login(loginDto: LoginDto): Promise<AuthResponse> {
-    const user = await this.userModel.findOne({ email: loginDto.email });
+  public async login(loginDto: LoginDto): Promise<AuthResponse> {
+    const user = await this.userRepository.findByEmail(loginDto.email);
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
-    // Exclude sensitive fields (e.g., password) from the user object
-    const { password, ...userWithoutPassword } = user.toObject();
 
     const isPasswordMatch = await compare(loginDto.password, user.password);
 
@@ -69,49 +72,32 @@ export class AuthService {
     }
 
     // token handling below
-    const token = this.generateToken(user._id as any);
+    const token = this.generateToken((user as any)._id as any);
+
+    // Exclude sensitive fields (e.g., password) from the user object
+    const { password, ...userWithoutPassword } = user;
 
     return { message: 'User Login Success', user: userWithoutPassword, token };
   }
 
-  async getUser(id: string): Promise<User> {
-    const isValidId = mongoose.isValidObjectId(id);
-
-    if (!isValidId) {
-      throw new BadRequestException('Invalid User ID');
-    }
-
-    const user = await this.userModel.findById(id);
-
-    if (!user) {
-      throw new NotFoundException('user not found.');
-    }
-
-    return user;
-  }
-
-  async getUsers(): Promise<User[]> {
-    try {
-      const users = await this.userModel.find({});
-      return users;
-    } catch (error) {
-      this.logger.error(
-        `An error occurred while retrieving users: ${error.message}`,
-      );
-      throw new Error('An error occurred while retrieving users');
-    }
-  }
-
-  generateToken(payload: string): string {
+  private generateToken(payload: string): string {
     try {
       const token = this.jwtService.sign({ _id: payload });
 
       return token;
     } catch (error) {
+      console.log(error);
       this.logger.error(
         `An error occurred while generating token: ${error.message}`,
       );
       throw new Error('An error occurred while generating token');
     }
+  }
+
+  public async verifyToken(token: string) {
+    const payload = await this.jwtService.verifyAsync(token, {
+      secret: this.configService.get<string>('JWT_SECRET'),
+    });
+    return payload;
   }
 }
