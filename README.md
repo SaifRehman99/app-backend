@@ -35,8 +35,11 @@ $ npm install
 ## Running the app
 
 ```bash
-# development
-$ npm run start
+# Rename env-example to .env and Paste your DB URL, JWT SECRET in .env
+$ mv env-example .env 
+
+# Install Packages
+$ npm i 
 
 # watch mode
 $ npm run start:dev
